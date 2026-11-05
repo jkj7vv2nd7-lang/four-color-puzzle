@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>四色ぬりえパズル ― どんな地図も4色でぬれる？</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="四色ぬりえ">
+<meta name="theme-color" content="#fff7e6">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="1024x1024" href="icon.png">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: linear-gradient(180deg, #fff7e6 0%, #ffeecf 55%, #ffe3ae 100%);
+    color: #3d2c1e; overflow-x: hidden;
+  }
+  .screen { display: none; min-height: 100dvh; flex-direction: column; align-items: center; padding: 18px 14px 30px; }
+  .screen.active { display: flex; }
+  /* ---------- タイトル ---------- */
+  .title-badge { margin-top: 4vh; background: #fff; border: 3px solid #3d2c1e; border-radius: 18px; padding: 8px 18px; font-weight: 800; letter-spacing: .12em; box-shadow: 0 3px 0 #3d2c1e; }
+  h1.logo { margin-top: 16px; font-size: clamp(34px, 9vw, 54px); font-weight: 900; text-align: center; line-height: 1.25; }
+  h1.logo .c1 { color: #e63946; } h1.logo .c2 { color: #f4a259; } h1.logo .c3 { color: #2a9d8f; } h1.logo .c4 { color: #4361ee; }
+  .logo-sub { margin-top: 8px; font-size: clamp(14px, 4vw, 18px); font-weight: 700; text-align: center; color: #6b4f35; }
+  .title-map { margin: 22px auto 4px; width: min(62vw, 280px); aspect-ratio: 1; }
+  .mode-btns { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; width: min(88vw, 360px); }
+  .mode-btn {
+    border: 3px solid #3d2c1e; border-radius: 18px; padding: 14px 16px; background: #fff;
+    font-size: 19px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 0 #3d2c1e; text-align: left;
+    display: flex; align-items: center; gap: 12px; color: #3d2c1e; font-family: inherit;
+  }
+  .mode-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #3d2c1e; }
+  .mode-btn .dot { width: 26px; height: 26px; border-radius: 8px; border: 2.5px solid #3d2c1e; flex: none; }
+  .mode-btn small { display: block; font-size: 12.5px; font-weight: 700; color: #8a6d4f; margin-top: 2px; }
+  .about-link { margin-top: 20px; font-size: 13px; color: #8a6d4f; text-decoration: underline; cursor: pointer; background: none; border: none; font-family: inherit; }
+  /* ---------- 地図えらび ---------- */
+  .head { width: 100%; max-width: 560px; display: flex; align-items: center; gap: 10px; }
+  .back-btn { border: 2.5px solid #3d2c1e; background: #fff; border-radius: 12px; padding: 7px 12px; font-weight: 900; cursor: pointer; box-shadow: 0 3px 0 #3d2c1e; font-family: inherit; color: #3d2c1e; }
+  .back-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #3d2c1e; }
+  .head h2 { font-size: 20px; font-weight: 900; }
+  .map-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; width: 100%; max-width: 560px; }
+  .map-card { background: #fff; border: 3px solid #3d2c1e; border-radius: 16px; padding: 10px; cursor: pointer; box-shadow: 0 3px 0 #3d2c1e; text-align: center; font-family: inherit; color: #3d2c1e; }
+  .map-card:active { transform: translateY(2px); box-shadow: 0 1px 0 #3d2c1e; }
+  .map-card canvas { width: 100%; aspect-ratio: 1; display: block; }
+  .map-card .nm { font-weight: 900; font-size: 15px; margin-top: 6px; }
+  .map-card .lv { font-size: 11.5px; color: #8a6d4f; font-weight: 700; }
+  .map-card .st { font-size: 12px; font-weight: 900; color: #2a9d8f; min-height: 15px; }
+  .map-card .st.impossible { color: #bc4749; }
+  /* ---------- あそぶ ---------- */
+  .play-head { width: 100%; max-width: 560px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .play-head .ttl { font-size: 18px; font-weight: 900; }
+  .play-head .goal { font-size: 12.5px; font-weight: 800; color: #8a6d4f; }
+  .board-wrap { margin-top: 10px; width: min(94vw, 520px); position: relative; }
+  #board { width: 100%; display: block; touch-action: none; border-radius: 14px; }
+  .msg { margin-top: 10px; min-height: 24px; font-weight: 900; font-size: 16px; text-align: center; }
+  .msg.warn { color: #d62828; }
+  .msg.good { color: #2a9d8f; }
+  .palette { margin-top: 8px; display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+  .pal-btn { width: 46px; height: 46px; border-radius: 14px; border: 3px solid #3d2c1e; cursor: pointer; box-shadow: 0 3px 0 #3d2c1e; position: relative; font-family: inherit; }
+  .pal-btn.sel { outline: 4px solid #3d2c1e; outline-offset: 2px; transform: scale(1.08); }
+  .pal-btn:active { transform: translateY(2px); }
+  .pal-btn.eraser { background: #fff; font-size: 20px; line-height: 1; }
+  .tools { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; }
+  .tool-btn { border: 2.5px solid #3d2c1e; background: #fff; border-radius: 12px; padding: 9px 14px; font-weight: 900; font-size: 14.5px; cursor: pointer; box-shadow: 0 3px 0 #3d2c1e; font-family: inherit; color: #3d2c1e; }
+  .tool-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #3d2c1e; }
+  .tool-btn.primary { background: #ffd166; }
+  .tool-btn:disabled { opacity: .45; }
+  /* ---------- モーダル ---------- */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(61,44,30,.55); z-index: 50; align-items: center; justify-content: center; padding: 18px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fffdf6; border: 3px solid #3d2c1e; border-radius: 20px; max-width: 480px; width: 100%; padding: 22px 20px; box-shadow: 0 8px 0 rgba(61,44,30,.35); max-height: 86dvh; overflow-y: auto; }
+  .modal h3 { font-size: 20px; font-weight: 900; margin-bottom: 10px; text-align: center; }
+  .modal p { font-size: 14.5px; line-height: 1.8; margin-bottom: 10px; }
+  .modal .center { text-align: center; }
+  .big-emoji { font-size: 46px; text-align: center; display: block; margin-bottom: 6px; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; display: none; }
+  .foot-note { margin-top: 18px; font-size: 11.5px; color: #a5875f; text-align: center; max-width: 480px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<!-- タイトル -->
+<section id="scr-title" class="screen active">
+  <div class="title-badge">すうがくの ぬりえパズル</div>
+  <h1 class="logo"><span class="c1">四</span><span class="c2">色</span>ぬりえ<span class="c3">パ</span><span class="c4">ズ</span>ル</h1>
+  <p class="logo-sub">となり合う 国は おなじ色に ならないように。<br>どんな地図も、4色あれば ぬれるって ほんとう？</p>
+  <canvas id="titleMap" class="title-map" width="560" height="560"></canvas>
+  <div class="mode-btns">
+    <button class="mode-btn" data-mode="normal"><span class="dot" style="background:#ffd166"></span><span>ふつうモード<small>9つの地図を、4色以内で ぬりきろう</small></span></button>
+    <button class="mode-btn" data-mode="challenge"><span class="dot" style="background:#ef476f"></span><span>3色チャレンジ<small>3色で ぬれる地図と、ぬれない地図。きみは 見分けられる？</small></span></button>
+    <button class="mode-btn" data-mode="free"><span class="dot" style="background:#06d6a0"></span><span>フリーモード<small>8色つかって、自由に カラフルに ぬろう</small></span></button>
+  </div>
+  <button class="about-link" id="aboutOpen">このアプリについて・四色問題（ししょくもんだい）</button>
+  <p class="foot-note">地図のデータは、すべて「4色でぬれること」をプログラムで確かめてあります。<br>不具合が出るかもしれません。実際にご使用の際に不具合がありましたら、noteの記事のコメント欄からお知らせください。</p>
+</section>
+
+<!-- 地図えらび -->
+<section id="scr-maps" class="screen">
+  <div class="head">
+    <button class="back-btn" id="mapsBack">← もどる</button>
+    <h2 id="mapsTitle">地図を えらぼう</h2>
+  </div>
+  <div class="map-grid" id="mapGrid"></div>
+</section>
+
+<!-- あそぶ -->
+<section id="scr-play" class="screen">
+  <div class="play-head">
+    <button class="back-btn" id="playBack">← 地図えらび</button>
+    <span class="ttl" id="playTitle"></span>
+    <span class="goal" id="playGoal"></span>
+  </div>
+  <div class="board-wrap"><canvas id="board" width="1040" height="1040"></canvas></div>
+  <p class="msg" id="msg"></p>
+  <div class="palette" id="palette"></div>
+  <div class="tools">
+    <button class="tool-btn" id="undoBtn">↩ ひとつ もどす</button>
+    <button class="tool-btn" id="resetBtn">はじめから</button>
+    <button class="tool-btn" id="hintBtn">ヒント</button>
+    <button class="tool-btn primary" id="whyBtn" style="display:none">なぜ 3色では むりなの？</button>
+    <button class="tool-btn" id="soundBtn">🔊 おと オン</button>
+  </div>
+  <p class="foot-note" id="playNote"></p>
+</section>
+
+<!-- クリア -->
+<div class="modal-bg" id="clearModal">
+  <div class="modal">
+    <span class="big-emoji">🎉</span>
+    <h3 id="clearTitle">クリア！</h3>
+    <p class="center" id="clearText"></p>
+    <div class="center" style="margin-top:14px; display:flex; gap:9px; justify-content:center; flex-wrap:wrap;">
+      <button class="tool-btn" id="clearRetry">もう一度</button>
+      <button class="tool-btn primary" id="clearNext">地図えらびへ</button>
+    </div>
+  </div>
+</div>
+
+<!-- 理由モーダル -->
+<div class="modal-bg" id="whyModal">
+  <div class="modal">
+    <h3>なぜ 3色では むりなの？</h3>
+    <p id="whyText"></p>
+    <canvas id="whyMap" width="520" height="520" style="width:100%; display:block;"></canvas>
+    <div class="center" style="margin-top:12px;">
+      <button class="tool-btn primary" id="whyClose">とじる</button>
+    </div>
+  </div>
+</div>
+
+<!-- このアプリについて -->
+<div class="modal-bg" id="aboutModal">
+  <div class="modal">
+    <h3>四色問題（ししょくもんだい）</h3>
+    <p>1852年、イギリスのガスリーという人が地図をぬっていて気づきました。「どんな地図も、4色あれば、となり同士が同じ色にならないようにぬれるのではないか？」</p>
+    <p>かんたんそうに見えたこの問題は、100年以上も解けませんでした。1879年には「証明できた」と発表されましたが、11年後に まちがいが見つかります。そして1976年、アッペルとハーケンという2人の数学者が、コンピュータの助けを借りて、ついに証明しました。調べた場合は1,936通り。コンピュータを使った大きな証明は、数学の世界で大議論になりました。</p>
+    <p>このアプリの地図は、すべて「4色でぬれること」をプログラムで確かめてあります。「3色チャレンジ」で ぬれない地図は、どう組み合わせても3色では足りないことも、確かめてあります。</p>
+    <p>絵本「地図は何色あればぬれる？ ― 四色問題のおはなし」と組になっています。あわせてどうぞ。</p>
+    <div class="center" style="margin-top:12px;">
+      <button class="tool-btn primary" id="aboutClose">とじる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const MAPS = [{"name":"はじまりの島","level":"やさしい","w":4,"h":4,"chi":3,"k4":null,"solution":{"C":0,"A":1,"B":2,"D":2,"E":1},"adj":{"A":["B","C","D"],"B":["A","C","E"],"C":["A","B","D","E"],"D":["A","C","E"],"E":["B","C","D"]},"regions":[{"id":"A","loops":[[[0,0],[2,0],[2,1],[1,1],[1,2],[0,2]]]},{"id":"B","loops":[[[2,0],[4,0],[4,2],[2,2]]]},{"id":"C","loops":[[[1,1],[2,1],[2,3],[1,3]]]},{"id":"D","loops":[[[0,2],[1,2],[1,3],[2,3],[2,4],[0,4]]]},{"id":"E","loops":[[[2,2],[4,2],[4,4],[2,4]]]}]},{"name":"かぜの谷","level":"やさしい","w":5,"h":5,"chi":4,"k4":["A","B","C","D"],"solution":{"B":0,"D":1,"A":2,"C":3,"E":2},"adj":{"A":["B","C","D"],"B":["A","C","D","E"],"C":["A","B","D"],"D":["A","B","C","E"],"E":["B","D"]},"regions":[{"id":"A","loops":[[[0,0],[3,0],[3,2],[2,2],[2,1],[1,1],[1,4],[0,4]]]},{"id":"B","loops":[[[3,0],[5,0],[5,3],[4,3],[4,4],[3,4],[3,3],[2,3],[2,2],[3,2]]]},{"id":"C","loops":[[[1,1],[2,1],[2,3],[1,3]]]},{"id":"D","loops":[[[1,3],[3,3],[3,5],[0,5],[0,4],[1,4]]]},{"id":"E","loops":[[[4,3],[5,3],[5,5],[3,5],[3,4],[4,4]]]}]},{"name":"みっつの山","level":"ふつう","w":6,"h":6,"chi":3,"k4":null,"solution":{"F":0,"A":1,"B":0,"C":2,"D":1,"G":2,"E":2},"adj":{"A":["B","C","E","F"],"B":["A","C","D","G"],"C":["A","B","D","F"],"D":["B","C","F","G"],"E":["A","F"],"F":["A","C","D","E","G"],"G":["B","D","F"]},"regions":[{"id":"A","loops":[[[0,0],[2,0],[2,2],[3,2],[3,3],[1,3],[1,2],[0,2]]]},{"id":"B","loops":[[[2,0],[6,0],[6,4],[5,4],[5,1],[2,1]]]},{"id":"C","loops":[[[2,1],[4,1],[4,4],[3,4],[3,2],[2,2]]]},{"id":"D","loops":[[[4,1],[5,1],[5,5],[4,5]]]},{"id":"E","loops":[[[0,2],[1,2],[1,3],[2,3],[2,4],[1,4],[1,6],[0,6]]]},{"id":"F","loops":[[[2,3],[3,3],[3,4],[4,4],[4,5],[5,5],[5,6],[1,6],[1,4],[2,4]]]},{"id":"G","loops":[[[5,4],[6,4],[6,6],[5,6]]]}]},{"name":"森と湖","level":"ふつう","w":6,"h":6,"chi":4,"k4":null,"solution":{"C":0,"B":1,"D":2,"F":1,"A":2,"E":3,"G":0},"adj":{"A":["B","C","E"],"B":["A","C","D","G"],"C":["A","B","D","E","F"],"D":["B","C","F","G"],"E":["A","C","F"],"F":["C","D","E","G"],"G":["B","D","F"]},"regions":[{"id":"A","loops":[[[0,0],[3,0],[3,1],[2,1],[2,2],[1,2],[1,3],[0,3]]]},{"id":"B","loops":[[[3,0],[6,0],[6,4],[5,4],[5,2],[3,2]]]},{"id":"C","loops":[[[2,1],[3,1],[3,2],[4,2],[4,3],[3,3],[3,4],[1,4],[1,2],[2,2]]]},{"id":"D","loops":[[[4,2],[5,2],[5,4],[4,4],[4,5],[3,5],[3,3],[4,3]]]},{"id":"E","loops":[[[0,3],[1,3],[1,4],[2,4],[2,5],[1,5],[1,6],[0,6]]]},{"id":"F","loops":[[[2,4],[3,4],[3,6],[1,6],[1,5],[2,5]]]},{"id":"G","loops":[[[4,4],[6,4],[6,6],[3,6],[3,5],[4,5]]]}]},{"name":"川の町","level":"ふつう","w":5,"h":5,"chi":3,"k4":null,"solution":{"E":0,"B":1,"D":2,"C":2,"F":1,"H":2,"A":0,"G":0},"adj":{"A":["B","D"],"B":["A","C","D","E"],"C":["B","E","F"],"D":["A","B","E","G"],"E":["B","C","D","F","H"],"F":["C","E","H"],"G":["D","H"],"H":["E","F","G"]},"regions":[{"id":"A","loops":[[[0,0],[2,0],[2,1],[1,1],[1,2],[0,2]]]},{"id":"B","loops":[[[2,0],[4,0],[4,1],[3,1],[3,2],[2,2]]]},{"id":"C","loops":[[[4,0],[5,0],[5,2],[3,2],[3,1],[4,1]]]},{"id":"D","loops":[[[1,1],[2,1],[2,4],[1,4],[1,3],[0,3],[0,2],[1,2]]]},{"id":"E","loops":[[[2,2],[4,2],[4,3],[3,3],[3,4],[2,4]]]},{"id":"F","loops":[[[4,2],[5,2],[5,5],[4,5],[4,4],[3,4],[3,3],[4,3]]]},{"id":"G","loops":[[[0,3],[1,3],[1,4],[2,4],[2,5],[0,5]]]},{"id":"H","loops":[[[2,4],[4,4],[4,5],[2,5]]]}]},{"name":"星の港","level":"むずかしい","w":6,"h":6,"chi":4,"k4":null,"solution":{"C":0,"F":1,"D":2,"E":2,"A":1,"B":3,"G":0,"H":0},"adj":{"A":["B","C","D"],"B":["A","C","E"],"C":["A","B","D","E","F"],"D":["A","C","F","G"],"E":["B","C","F","H"],"F":["C","D","E","G","H"],"G":["D","F"],"H":["E","F"]},"regions":[{"id":"A","loops":[[[0,0],[2,0],[2,2],[0,2]]]},{"id":"B","loops":[[[2,0],[6,0],[6,4],[5,4],[5,2],[3,2],[3,1],[2,1]]]},{"id":"C","loops":[[[2,1],[3,1],[3,2],[4,2],[4,4],[2,4]]]},{"id":"D","loops":[[[0,2],[2,2],[2,3],[1,3],[1,6],[0,6]]]},{"id":"E","loops":[[[4,2],[5,2],[5,4],[6,4],[6,6],[5,6],[5,5],[4,5]]]},{"id":"F","loops":[[[1,3],[2,3],[2,4],[4,4],[4,6],[2,6],[2,5],[1,5]]]},{"id":"G","loops":[[[1,5],[2,5],[2,6],[1,6]]]},{"id":"H","loops":[[[4,5],[5,5],[5,6],[4,6]]]}]},{"name":"渦巻きの島","level":"むずかしい","w":6,"h":6,"chi":4,"k4":null,"solution":{"D":0,"E":1,"F":2,"B":1,"C":2,"H":0,"A":3,"G":0},"adj":{"A":["B","C","D"],"B":["A","D","F","H"],"C":["A","D","E","H"],"D":["A","B","C","E","F"],"E":["C","D","F","G","H"],"F":["B","D","E","G","H"],"G":["E","F"],"H":["B","C","E","F"]},"regions":[{"id":"A","loops":[[[0,0],[5,0],[5,1],[0,1]]]},{"id":"B","loops":[[[5,0],[6,0],[6,4],[5,4]]]},{"id":"C","loops":[[[0,1],[2,1],[2,2],[1,2],[1,5],[3,5],[3,6],[0,6]]]},{"id":"D","loops":[[[2,1],[5,1],[5,2],[2,2]]]},{"id":"E","loops":[[[1,2],[3,2],[3,3],[2,3],[2,4],[4,4],[4,5],[1,5]]]},{"id":"F","loops":[[[3,2],[5,2],[5,4],[3,4]]]},{"id":"G","loops":[[[2,3],[3,3],[3,4],[2,4]]]},{"id":"H","loops":[[[4,4],[6,4],[6,6],[3,6],[3,5],[4,5]]]}]},{"name":"七つの海","level":"むずかしい","w":7,"h":7,"chi":3,"k4":null,"solution":{"G":0,"B":1,"D":2,"F":1,"A":0,"E":2,"H":2,"C":0,"I":1},"adj":{"A":["B","D","F"],"B":["A","C","D","E","G"],"C":["B","E"],"D":["A","B","F","G"],"E":["B","C","G"],"F":["A","D","G","H"],"G":["B","D","E","F","H","I"],"H":["F","G","I"],"I":["G","H"]},"regions":[{"id":"A","loops":[[[0,0],[3,0],[3,2],[2,2],[2,1],[1,1],[1,3],[0,3]]]},{"id":"B","loops":[[[3,0],[5,0],[5,5],[4,5],[4,2],[3,2]]]},{"id":"C","loops":[[[5,0],[7,0],[7,5],[6,5],[6,2],[5,2]]]},{"id":"D","loops":[[[1,1],[2,1],[2,2],[4,2],[4,3],[3,3],[3,5],[2,5],[2,4],[1,4]]]},{"id":"E","loops":[[[5,2],[6,2],[6,5],[7,5],[7,7],[5,7]]]},{"id":"F","loops":[[[0,3],[1,3],[1,4],[2,4],[2,6],[1,6],[1,5],[0,5]]]},{"id":"G","loops":[[[3,3],[4,3],[4,5],[5,5],[5,7],[4,7],[4,6],[2,6],[2,5],[3,5]]]},{"id":"H","loops":[[[0,5],[1,5],[1,6],[3,6],[3,7],[0,7]]]},{"id":"I","loops":[[[3,6],[4,6],[4,7],[3,7]]]}]},{"name":"大きな大陸","level":"とくべつ","w":8,"h":8,"chi":3,"k4":null,"solution":{"F":0,"D":1,"E":2,"H":2,"I":1,"B":1,"G":0,"A":0,"C":0,"J":0,"K":1},"adj":{"A":["B","D"],"B":["A","C","F"],"C":["B","E"],"D":["A","F","G","H"],"E":["C","F","I","J"],"F":["B","D","E","H","I"],"G":["D","H","K"],"H":["D","F","G","I"],"I":["E","F","H","J"],"J":["E","I"],"K":["G"]},"regions":[{"id":"A","loops":[[[0,0],[3,0],[3,2],[2,2],[2,1],[1,1],[1,3],[0,3]]]},{"id":"B","loops":[[[3,0],[5,0],[5,3],[4,3],[4,2],[3,2]]]},{"id":"C","loops":[[[5,0],[8,0],[8,3],[7,3],[7,1],[6,1],[6,3],[5,3]]]},{"id":"D","loops":[[[1,1],[2,1],[2,2],[3,2],[3,3],[2,3],[2,6],[1,6],[1,4],[0,4],[0,3],[1,3]]]},{"id":"E","loops":[[[6,1],[7,1],[7,3],[8,3],[8,4],[6,4],[6,6],[5,6],[5,3],[6,3]]]},{"id":"F","loops":[[[3,2],[4,2],[4,3],[5,3],[5,4],[4,4],[4,6],[3,6],[3,4],[2,4],[2,3],[3,3]]]},{"id":"G","loops":[[[0,4],[1,4],[1,6],[2,6],[2,8],[1,8],[1,7],[0,7]]]},{"id":"H","loops":[[[2,4],[3,4],[3,6],[4,6],[4,8],[2,8]]]},{"id":"I","loops":[[[4,4],[5,4],[5,6],[6,6],[6,7],[5,7],[5,8],[4,8]]]},{"id":"J","loops":[[[6,4],[8,4],[8,8],[5,8],[5,7],[6,7]]]},{"id":"K","loops":[[[0,7],[1,7],[1,8],[0,8]]]}]},{"name":"まるい島と海","level":"チャレンジ","w":5,"h":5,"chi":4,"k4":["A","B","C","S"],"solution":{"A":0,"B":1,"C":2,"S":3},"adj":{"A":["B","C","S"],"B":["A","C","S"],"C":["A","B","S"],"S":["A","B","C"]},"regions":[{"id":"A","loops":[[[1,1],[3,1],[3,2],[2,2],[2,3],[1,3]]]},{"id":"B","loops":[[[3,1],[4,1],[4,4],[3,4]]]},{"id":"C","loops":[[[2,2],[3,2],[3,4],[1,4],[1,3],[2,3]]]},{"id":"S","loops":[[[0,0],[5,0],[5,5],[0,5]],[[1,1],[1,4],[4,4],[4,1]]]}]}];
+const COLORS4 = [
+  { name: 'あか', hex: '#ef476f' },
+  { name: 'きいろ', hex: '#ffd166' },
+  { name: 'みどり', hex: '#06d6a0' },
+  { name: 'あお', hex: '#118ab2' },
+];
+const COLORS_FREE = COLORS4.concat([
+  { name: 'むらさき', hex: '#8338ec' },
+  { name: 'オレンジ', hex: '#fb8500' },
+  { name: 'ピンク', hex: '#ff8fab' },
+  { name: 'みずいろ', hex: '#4cc9f0' },
+]);
+const NORMAL_ORDER = ['はじまりの島', 'かぜの谷', 'みっつの山', '森と湖', '川の町', '星の港', '渦巻きの島', '七つの海', '大きな大陸'];
+const CHALLENGE_OK = ['はじまりの島', 'みっつの山', '川の町', '七つの海', '大きな大陸'];
+const CHALLENGE_NG = ['まるい島と海', 'かぜの谷', '森と湖', '星の港'];
+const byName = Object.fromEntries(MAPS.map(m => [m.name, m]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('fc-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('fc-' + k, JSON.stringify(v)); } catch (e) {} },
+};
+/* ---------- おと ---------- */
+let audioCtx = null, soundOn = store.get('sound', true);
+function ac() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; }
+function tone(freq, t0, dur, type = 'sine', vol = 0.16) {
+  if (!soundOn) return;
+  try {
+    const ctx = ac(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime + t0);
+    g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t0 + dur);
+    o.connect(g).connect(ctx.destination); o.start(ctx.currentTime + t0); o.stop(ctx.currentTime + t0 + dur + 0.05);
+  } catch (e) {}
+}
+const sPaint = () => { tone(660, 0, 0.09, 'triangle', 0.12); };
+const sErase = () => { tone(330, 0, 0.09, 'triangle', 0.1); };
+const sBad = () => { tone(160, 0, 0.16, 'sawtooth', 0.07); tone(140, 0.05, 0.18, 'sawtooth', 0.07); };
+const sClear = () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.24, 'triangle', 0.16)); tone(1319, 0.46, 0.4, 'triangle', 0.14); };
+/* ---------- 画面遷移 ---------- */
+const $ = id => document.getElementById(id);
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); window.scrollTo(0, 0); }
+/* ---------- 地図描画 ---------- */
+function drawMap(ctx, map, colors, opts = {}) {
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  const scale = Math.min(W / map.w, H / map.h) * 0.94;
+  const ox = (W - map.w * scale) / 2, oy = (H - map.h * scale) / 2;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fdf6e3'; ctx.fillRect(0, 0, W, H);
+  const P = ([x, y]) => [ox + x * scale, oy + y * scale];
+  function traceLoops(region) {
+    ctx.beginPath();
+    for (const loop of region.loops) {
+      loop.forEach((v, i) => { const [px, py] = P(v); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+      ctx.closePath();
+    }
+  }
+  for (const r of map.regions) {
+    const c = colors[r.id];
+    traceLoops(r);
+    ctx.fillStyle = c != null ? c : '#ffffff';
+    ctx.fill('evenodd');
+  }
+  // 枠線
+  for (const r of map.regions) {
+    traceLoops(r);
+    ctx.strokeStyle = '#3d2c1e'; ctx.lineWidth = Math.max(2, W * 0.006); ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+  // 競合ハイライト（赤い点滅枠）
+  if (opts.conflicts && opts.conflicts.size) {
+    ctx.save();
+    ctx.globalAlpha = 0.55 + 0.35 * Math.sin(Date.now() / 130);
+    for (const r of map.regions) if (opts.conflicts.has(r.id)) {
+      traceLoops(r);
+      ctx.strokeStyle = '#e63946'; ctx.lineWidth = Math.max(4, W * 0.012); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // チャレンジ理由：K4 ハイライト
+  if (opts.highlight) {
+    for (const r of map.regions) if (opts.highlight.includes(r.id)) {
+      traceLoops(r);
+      ctx.fillStyle = 'rgba(230,57,70,0.28)'; ctx.fill('evenodd');
+      ctx.strokeStyle = '#e63946'; ctx.lineWidth = Math.max(3, W * 0.009); ctx.stroke();
+    }
+  }
+  return { scale, ox, oy };
+}
+function regionAt(map, gx, gy) {
+  for (const r of map.regions) {
+    let inside = false;
+    for (const loop of r.loops) {
+      let c = false;
+      for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+        const [xi, yi] = loop[i], [xj, yj] = loop[j];
+        if (((yi > gy) !== (yj > gy)) && (gx < (xj - xi) * (gy - yi) / (yj - yi) + xi)) c = !c;
+      }
+      if (c) inside = !inside;
+    }
+    if (inside) return r.id;
+  }
+  return null;
+}
+/* ---------- タイトル地図 ---------- */
+(function () {
+  const m = byName['渦巻きの島'];
+  const colors = {};
+  for (const r of m.regions) colors[r.id] = COLORS4[m.solution[r.id]].hex;
+  drawMap($('titleMap').getContext('2d'), m, colors);
+})();
+/* ---------- 状態 ---------- */
+let mode = 'normal', curMap = null, paint = {}, selColor = 0, history = [], hintUsed = false, animTimer = null;
+function paletteColors() { return mode === 'free' ? COLORS_FREE : COLORS4; }
+function conflictsNow() {
+  const bad = new Set();
+  for (const r of curMap.regions) {
+    const c = paint[r.id];
+    if (c == null) continue;
+    for (const n of curMap.adj[r.id]) if (paint[n] === c) { bad.add(r.id); bad.add(n); }
+  }
+  return bad;
+}
+function renderBoard() {
+  const ctx = $('board').getContext('2d');
+  const pal = paletteColors();
+  const colors = {};
+  for (const r of curMap.regions) colors[r.id] = paint[r.id] != null ? pal[paint[r.id]].hex : null;
+  const conf = mode === 'free' ? new Set() : conflictsNow();
+  drawMap(ctx, curMap, colors, { conflicts: conf });
+}
+function setMsg(text, cls = '') { const m = $('msg'); m.textContent = text; m.className = 'msg ' + cls; }
+function updateMsg() {
+  if (!curMap) return;
+  const total = curMap.regions.length;
+  const done = curMap.regions.filter(r => paint[r.id] != null).length;
+  const conf = mode === 'free' ? new Set() : conflictsNow();
+  if (conf.size) { setMsg('⚠ となり同士が 同じ色に なっているよ', 'warn'); return; }
+  if (mode === 'challenge' && curMap.chi > 3) {
+    setMsg(done === total ? '全部ぬれた！ …でも、どこかで同じ色が となり合っているはず。さがしてみよう。' : `ぬれた国： ${done} / ${total}　3色だけで ぬりきれるかな？`);
+    return;
+  }
+  setMsg(done === total ? '' : `ぬれた国： ${done} / ${total}`);
+}
+function checkClear() {
+  if (mode === 'free') return false;
+  const total = curMap.regions.length;
+  const done = curMap.regions.filter(r => paint[r.id] != null).length;
+  if (done < total) return false;
+  if (conflictsNow().size) return false;
+  if (mode === 'challenge' && curMap.chi > 3) return false; // 3色では完成しない（競合ゼロはあり得ない）
+  const used = new Set(Object.values(paint)).size;
+  const key = (mode === 'challenge' ? 'ch-' : 'nm-') + curMap.name;
+  const prev = store.get(key, null);
+  store.set(key, { cleared: true, minColors: prev && prev.minColors != null ? Math.min(prev.minColors, used) : used, hint: hintUsed || (prev && prev.hint) });
+  sClear(); confetti();
+  $('clearTitle').textContent = mode === 'challenge' ? '3色で クリア！🎉' : 'クリア！🎉';
+  $('clearText').innerHTML = mode === 'challenge'
+    ? `「${curMap.name}」を <b>3色だけ</b> で ぬりきりました！<br>すごい！ 場合分けの達人です。`
+    : `「${curMap.name}」を <b>${used}色</b> で ぬりきりました！` + (curMap.chi === used ? '<br>これは、この地図に必要な いちばん少ない色数です。🏆' : `<br>（この地図は ${curMap.chi}色でも ぬれるそうです。挑戦してみてね）`);
+  setTimeout(() => $('clearModal').classList.add('open'), 350);
+  return true;
+}
+/* ---------- 紙吹雪 ---------- */
+function confetti() {
+  const cv = $('confetti'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight; cv.style.display = 'block';
+  const parts = Array.from({ length: 130 }, () => ({
+    x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * 0.4,
+    w: 6 + Math.random() * 7, h: 8 + Math.random() * 8,
+    vy: 2.2 + Math.random() * 3, vx: -1 + Math.random() * 2, rot: Math.random() * 6.28, vr: -0.1 + Math.random() * 0.2,
+    color: ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#8338ec', '#fb8500'][Math.floor(Math.random() * 6)],
+  }));
+  const t0 = Date.now();
+  (function frame() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const p of parts) {
+      p.y += p.vy; p.x += p.vx; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    }
+    if (Date.now() - t0 < 2600) requestAnimationFrame(frame);
+    else { cv.style.display = 'none'; ctx.clearRect(0, 0, cv.width, cv.height); }
+  })();
+}
+/* ---------- 地図えらび ---------- */
+function renderMapList() {
+  const grid = $('mapGrid'); grid.innerHTML = '';
+  const names = mode === 'normal' ? NORMAL_ORDER : mode === 'challenge' ? CHALLENGE_OK.concat(CHALLENGE_NG) : NORMAL_ORDER.concat(['まるい島と海']);
+  $('mapsTitle').textContent = mode === 'normal' ? '地図を えらぼう（ふつう）' : mode === 'challenge' ? '地図を えらぼう（3色チャレンジ）' : '地図を えらぼう（フリー）';
+  for (const name of names) {
+    const m = byName[name];
+    const card = document.createElement('button');
+    card.className = 'map-card';
+    const cv = document.createElement('canvas'); cv.width = 300; cv.height = 300;
+    const colors = {};
+    for (const r of m.regions) colors[r.id] = COLORS4[m.solution[r.id]].hex;
+    drawMap(cv.getContext('2d'), m, colors);
+    card.appendChild(cv);
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = name; card.appendChild(nm);
+    const lv = document.createElement('div'); lv.className = 'lv';
+    lv.textContent = mode === 'challenge' ? (m.chi <= 3 ? '3色で ぬれるはず' : '3色で ぬれる…かな？') : `${m.level} ・ ${m.regions.length}の国`;
+    card.appendChild(lv);
+    const st = document.createElement('div'); st.className = 'st';
+    if (mode !== 'free') {
+      const rec = store.get((mode === 'challenge' ? 'ch-' : 'nm-') + name, null);
+      if (rec && rec.cleared) st.textContent = mode === 'challenge' ? '✔ 3色クリア！' : `✔ クリア（${rec.minColors}色）`;
+      else if (mode === 'challenge' && m.chi > 3) { st.textContent = 'じつは 3色では むり'; st.classList.add('impossible'); }
+    }
+    card.appendChild(st);
+    card.addEventListener('click', () => startGame(m));
+    grid.appendChild(card);
+  }
+}
+/* ---------- ゲーム開始 ---------- */
+function startGame(m) {
+  curMap = m; paint = {}; history = []; hintUsed = false; selColor = 0;
+  show('scr-play');
+  $('playTitle').textContent = m.name;
+  $('playGoal').textContent = mode === 'normal' ? `4色以内で ぬりきろう（${m.regions.length}の国）`
+    : mode === 'challenge' ? (m.chi <= 3 ? '3色だけで ぬりきろう！' : '3色だけで ぬりきれる…かな？') : '8色で 自由に ぬろう';
+  $('whyBtn').style.display = (mode === 'challenge' && m.chi > 3) ? '' : 'none';
+  $('hintBtn').style.display = (mode === 'free' || (mode === 'challenge' && m.chi > 3)) ? 'none' : '';
+  $('playNote').textContent = mode === 'challenge' && m.chi > 3
+    ? 'この地図は、どう組み合わせても3色では ぬれません。「なぜ むりなの？」で理由が見られます。'
+    : '地域をタップすると、選んだ色で ぬれます。同じ色ボタンを もう一度押すと、色を消せます。';
+  buildPalette();
+  renderBoard(); updateMsg();
+  $('soundBtn').textContent = soundOn ? '🔊 おと オン' : '🔇 おと オフ';
+}
+function buildPalette() {
+  const pal = paletteColors();
+  const use = mode === 'challenge' ? pal.slice(0, 3) : pal;
+  const wrap = $('palette'); wrap.innerHTML = '';
+  use.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'pal-btn' + (i === selColor ? ' sel' : '');
+    b.style.background = c.hex; b.title = c.name;
+    b.addEventListener('click', () => { selColor = i; tone(500 + i * 60, 0, 0.06, 'triangle', 0.08); buildPalette(); });
+    wrap.appendChild(b);
+  });
+  const er = document.createElement('button');
+  er.className = 'pal-btn eraser' + (selColor === -1 ? ' sel' : '');
+  er.textContent = '⌫'; er.title = 'けしゴム';
+  er.addEventListener('click', () => { selColor = -1; buildPalette(); });
+  wrap.appendChild(er);
+}
+/* ---------- 盤面タップ ---------- */
+(function () {
+  const cv = $('board');
+  let lastTap = 0;
+  cv.addEventListener('pointerdown', e => {
+    if (!curMap) return;
+    e.preventDefault();
+    const rect = cv.getBoundingClientRect();
+    const W = cv.width, H = cv.height;
+    const scale = Math.min(W / curMap.w, H / curMap.h) * 0.94;
+    const ox = (W - curMap.w * scale) / 2, oy = (H - curMap.h * scale) / 2;
+    const gx = ((e.clientX - rect.left) / rect.width * W - ox) / scale;
+    const gy = ((e.clientY - rect.top) / rect.height * H - oy) / scale;
+    const id = regionAt(curMap, gx, gy);
+    if (!id) return;
+    history.push({ id, prev: paint[id] != null ? paint[id] : null });
+    if (history.length > 200) history.shift();
+    if (selColor === -1 || paint[id] === selColor) { delete paint[id]; sErase(); }
+    else {
+      paint[id] = selColor; sPaint();
+      if (mode !== 'free' && conflictsNow().has(id)) setTimeout(sBad, 60);
+    }
+    renderBoard(); updateMsg();
+    if (!checkClear()) startConflictAnim();
+  });
+  function startConflictAnim() {
+    if (animTimer) return;
+    if (mode === 'free' || !conflictsNow().size) return;
+    animTimer = setInterval(() => {
+      if (!curMap || !conflictsNow().size) { clearInterval(animTimer); animTimer = null; renderBoard(); return; }
+      renderBoard();
+    }, 180);
+  }
+})();
+/* ---------- ボタン ---------- */
+document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => { mode = b.dataset.mode; tone(590, 0, 0.08, 'triangle', 0.1); renderMapList(); show('scr-maps'); }));
+$('mapsBack').addEventListener('click', () => show('scr-title'));
+$('playBack').addEventListener('click', () => { if (animTimer) { clearInterval(animTimer); animTimer = null; } renderMapList(); show('scr-maps'); });
+$('undoBtn').addEventListener('click', () => {
+  const h = history.pop(); if (!h) return;
+  if (h.prev == null) delete paint[h.id]; else paint[h.id] = h.prev;
+  sErase(); renderBoard(); updateMsg();
+});
+$('resetBtn').addEventListener('click', () => { paint = {}; history = []; sErase(); renderBoard(); updateMsg(); });
+$('hintBtn').addEventListener('click', () => {
+  const target = curMap.regions.find(r => paint[r.id] == null || paint[r.id] !== curMap.solution[r.id]);
+  if (!target) return;
+  history.push({ id: target.id, prev: paint[target.id] != null ? paint[target.id] : null });
+  paint[target.id] = curMap.solution[target.id];
+  hintUsed = true; sPaint(); renderBoard(); updateMsg(); checkClear();
+});
+$('soundBtn').addEventListener('click', () => {
+  soundOn = !soundOn; store.set('sound', soundOn);
+  $('soundBtn').textContent = soundOn ? '🔊 おと オン' : '🔇 おと オフ';
+  if (soundOn) sPaint();
+});
+$('clearRetry').addEventListener('click', () => { $('clearModal').classList.remove('open'); paint = {}; history = []; hintUsed = false; renderBoard(); updateMsg(); });
+$('clearNext').addEventListener('click', () => { $('clearModal').classList.remove('open'); renderMapList(); show('scr-maps'); });
+$('aboutOpen').addEventListener('click', () => $('aboutModal').classList.add('open'));
+$('aboutClose').addEventListener('click', () => $('aboutModal').classList.remove('open'));
+$('whyClose').addEventListener('click', () => $('whyModal').classList.remove('open'));
+$('whyBtn').addEventListener('click', () => {
+  const m = curMap;
+  const ctx = $('whyMap').getContext('2d');
+  if (m.k4) {
+    $('whyText').innerHTML = '色のついた4つの地域（国）に注目してください。この4つは、<b>どの2つも となり同士</b>です。1つ目に あか、2つ目に きいろ、3つ目に みどりをぬると、4つ目は あか・きいろ・みどりの どれとも となり合っているので、3色のどれも使えません。だから、この地図は3色では ぬれないのです。';
+    const colors = {};
+    for (const r of m.regions) colors[r.id] = paint[r.id] != null ? paletteColors()[paint[r.id]].hex : null;
+    drawMap(ctx, m, colors, { highlight: m.k4 });
+  } else {
+    $('whyText').innerHTML = 'この地図には「どの2つもとなり同士」という4つの国の組はありません。でも、色の組み合わせを全部たしかめると、どう置いても どこかで同じ色がとなり合ってしまいます。コンピュータで全通りを調べた結果、3色では ぬれないことが分かっています（4色なら ぬれます）。';
+    const colors = {};
+    for (const r of m.regions) colors[r.id] = COLORS4[m.solution[r.id]].hex;
+    drawMap(ctx, m, colors);
+  }
+  $('whyModal').classList.add('open');
+});
+</script>
+</body>
+</html>

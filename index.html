@@ -124,6 +124,7 @@
     <button class="tool-btn" id="undoBtn">↩ ひとつ もどす</button>
     <button class="tool-btn" id="resetBtn">はじめから</button>
     <button class="tool-btn" id="hintBtn">ヒント</button>
+    <button class="tool-btn" id="printBtn">🖨 いんさつ</button>
     <button class="tool-btn primary" id="whyBtn" style="display:none">なぜ 3色では むりなの？</button>
     <button class="tool-btn" id="soundBtn">🔊 おと オン</button>
   </div>
@@ -138,6 +139,7 @@
     <p class="center" id="clearText"></p>
     <div class="center" style="margin-top:14px; display:flex; gap:9px; justify-content:center; flex-wrap:wrap;">
       <button class="tool-btn" id="clearRetry">もう一度</button>
+      <button class="tool-btn" id="clearPrint">🖨 いんさつする</button>
       <button class="tool-btn primary" id="clearNext">地図えらびへ</button>
     </div>
   </div>
@@ -478,6 +480,59 @@ $('soundBtn').addEventListener('click', () => {
 });
 $('clearRetry').addEventListener('click', () => { $('clearModal').classList.remove('open'); paint = {}; history = []; hintUsed = false; renderBoard(); updateMsg(); });
 $('clearNext').addEventListener('click', () => { $('clearModal').classList.remove('open'); renderMapList(); show('scr-maps'); });
+
+/* ---------- いんさつ（自分の作品をA4に） ---------- */
+function makePrintCanvas() {
+  // 盤面を高解像度で描き直す
+  const bcv = document.createElement('canvas'); bcv.width = 1560; bcv.height = 1560;
+  const pal = paletteColors();
+  const colors = {};
+  for (const r of curMap.regions) colors[r.id] = paint[r.id] != null ? pal[paint[r.id]].hex : null;
+  drawMap(bcv.getContext('2d'), curMap, colors, {});
+  // A4たて（200dpi相当）にレイアウト
+  const W = 1654, H = 2339;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#3d2c1e'; x.textBaseline = 'middle';
+  x.font = '900 76px sans-serif'; x.textAlign = 'left';
+  x.fillText(curMap.name, 80, 108);
+  const today = new Date();
+  const ds = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+  x.font = '700 40px sans-serif'; x.textAlign = 'right';
+  x.fillText(ds, W - 80, 112);
+  x.strokeStyle = '#3d2c1e'; x.lineWidth = 4;
+  x.beginPath(); x.moveTo(80, 168); x.lineTo(W - 80, 168); x.stroke();
+  const bw = W - 160;
+  x.drawImage(bcv, 80, 210, bw, bw);
+  const fy = 210 + bw + 96;
+  x.fillStyle = '#3d2c1e'; x.font = '700 44px sans-serif'; x.textAlign = 'left';
+  x.fillText('なまえ：', 80, fy);
+  x.strokeStyle = '#8a6d4f'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(290, fy + 26); x.lineTo(950, fy + 26); x.stroke();
+  x.font = '400 34px sans-serif'; x.fillStyle = '#8a6d4f'; x.textAlign = 'right';
+  x.fillText('四色ぬりえパズル', W - 80, fy);
+  return cv;
+}
+async function printWork() {
+  if (!curMap) return;
+  const cv = makePrintCanvas();
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS && navigator.canShare) {
+    try {
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      const file = new File([blob], 'fourcolor-' + Date.now() + '.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    } catch (e) { /* キャンセル等はそのまま終わる */ return; }
+  }
+  const url = cv.toDataURL('image/png');
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write('<!DOCTYPE html><html><head><title>' + curMap.name + ' ― 四色ぬりえパズル</title><style>@page { size: A4 portrait; margin: 0; } body { margin: 0; } img { width: 100%; display: block; }</style></head><body><img src="' + url + '" onload="setTimeout(() => { window.print(); }, 60)"></body></html>');
+  w.document.close();
+}
+$('printBtn').addEventListener('click', printWork);
+$('clearPrint').addEventListener('click', printWork);
 $('aboutOpen').addEventListener('click', () => $('aboutModal').classList.add('open'));
 $('aboutClose').addEventListener('click', () => $('aboutModal').classList.remove('open'));
 $('whyClose').addEventListener('click', () => $('whyModal').classList.remove('open'));
